@@ -70,7 +70,32 @@ def validate_symbol_format(symbol: str) -> str:
     return s
 
 
-def ensure_stock(db: Session, symbol: str, *, lookup_metadata: bool = True) -> Stock:
+class ValidationUnavailable(RuntimeError):
+    """Providers are unreachable, so a new symbol cannot be validated right now."""
+
+
+def _require_market_data(db: Session, sym: str) -> None:
+    """A new symbol must be known to at least one provider (metadata or recent bars)."""
+    end = calendar.latest_completed_session()
+    start = end - timedelta(days=14)
+    unreachable = False
+    for p in registry.price_providers():
+        try:
+            res = p.get_daily_history(sym, start, end)
+            registry.record_success(db, p.name)
+            if not res.frame.empty:
+                return
+        except SymbolNotFound:
+            continue
+        except ProviderError as exc:
+            registry.record_failure(db, p.name, exc)
+            unreachable = True
+    if unreachable:
+        raise ValidationUnavailable(f"could not validate {sym}: market data providers unavailable")
+    raise InvalidSymbol(f"unknown symbol: {sym}")
+
+
+def ensure_stock(db: Session, symbol: str, *, lookup_metadata: bool = True, validate: bool = True) -> Stock:
     """Return the stock row, creating it after validating with a provider."""
     sym = validate_symbol_format(symbol)
     stock = repo.get_stock(db, sym)
@@ -91,6 +116,8 @@ def ensure_stock(db: Session, symbol: str, *, lookup_metadata: bool = True) -> S
             except ProviderError as exc:
                 registry.record_failure(db, p.name, exc)
                 continue
+    if meta is None and validate:
+        _require_market_data(db, sym)
     asset_type = (meta.asset_type if meta and meta.asset_type else ("INDEX" if sym.startswith("^") else "EQUITY"))
     stock = Stock(
         symbol=sym,

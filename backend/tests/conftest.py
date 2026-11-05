@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://stock:stock@localhost:5432/stock_test"))
-os.environ.setdefault("JWT_SECRET", "test-secret-value")
+os.environ.setdefault("JWT_SECRET", "test-secret-value-with-at-least-32-bytes")
 os.environ.setdefault("LINE_CHANNEL_SECRET", "test-channel-secret")
 os.environ.setdefault("LINE_CHANNEL_ACCESS_TOKEN", "test-access-token")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
