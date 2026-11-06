@@ -199,3 +199,29 @@ def test_score_weights_and_classification():
     assert classify(85) == "STRONG_LONG_TERM_TREND" and classify(70) == "BULLISH" and classify(55) == "NEUTRAL"
     assert classify(40) == "WEAKENING" and classify(10) == "BEARISH"
     assert linear(5, 0, 10) == 50 and linear(-1, 0, 10) == 0 and linear(0.5, 2, 0) == 75
+
+
+def test_outage_during_new_symbol_validation_is_reported(db, fake_provider):
+    def down(*a, **k):
+        raise ProviderUnavailable("down")
+
+    fake_provider.get_metadata = down  # type: ignore[assignment]
+    fake_provider.get_daily_history = down  # type: ignore[assignment]
+    rep = update_symbols(db, ["NEWCO"], years=1)
+    assert rep.results[0].status == "FAILED" and "unavailable" in rep.results[0].error
+
+
+def test_reanalysis_updates_signal_without_new_alert(db, fake_provider):
+    end = calendar.latest_completed_session()
+    update_symbols(db, ["UPD", "SPY"], now=_now_after(end), years=2)
+    st = repo.get_stock(db, "UPD")
+    first = analyze_stock(db, st, now=_now_after(end))
+    db.commit()
+    assert first.new_signals
+    sig = db.scalar(select(InvestmentSignal).where(InvestmentSignal.stock_id == st.id, InvestmentSignal.is_primary.is_(True)))
+    sig.reasons = ["stale reason"]
+    db.commit()
+    second = analyze_stock(db, st, now=_now_after(end))
+    db.commit()
+    db.refresh(sig)
+    assert second.new_signals == [] and sig.reasons != ["stale reason"]

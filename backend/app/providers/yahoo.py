@@ -136,6 +136,11 @@ class YahooFinanceProvider(MarketDataProvider):
             )
 
         raw = self._with_retries(_download, f"download {','.join(ysyms[:5])}")
+        if raw is None or raw.dropna(how="all").empty:
+            # yfinance reports network failures as "no data / possibly delisted";
+            # distinguish an outage from genuinely unknown symbols with a probe.
+            if not self.reachable():
+                raise ProviderUnavailable("yahoo: no data returned and probe symbol failed (provider unreachable)")
         out: dict[str, HistoryResult] = {}
         for sym, ysym in zip(symbols, ysyms, strict=True):
             try:
@@ -149,6 +154,26 @@ class YahooFinanceProvider(MarketDataProvider):
                 warnings.append("no rows returned")
             out[sym] = HistoryResult(sym, self.name, frame, adjusted_included=True, retrieved_at=retrieved, warnings=warnings)
         return out
+
+    PROBE_SYMBOL = "SPY"
+
+    def reachable(self) -> bool:
+        """Cheap health probe (cached 5 minutes)."""
+        from app.core.cache import cache_get_json, cache_set_json
+
+        cached = cache_get_json("yahoo:probe")
+        if cached is not None:
+            return bool(cached)
+        try:
+            t = self._yf().Ticker(self.PROBE_SYMBOL)
+            ok = not t.history(period="5d", interval="1d", auto_adjust=False).empty
+        except Exception:
+            ok = False
+        cache_set_json("yahoo:probe", ok, 300)
+        return ok
+
+    def health_check(self) -> bool:
+        return self.reachable()
 
     def get_quote(self, symbol: str) -> Quote:
         """Latest completed daily bar. Yahoo quotes are not guaranteed real time, so

@@ -190,7 +190,7 @@ def update_symbols(
     for s in symbols:
         try:
             stocks[repo.normalize_symbol(s)] = ensure_stock(db, s)
-        except InvalidSymbol as exc:
+        except (InvalidSymbol, ValidationUnavailable) as exc:
             report.results.append(SymbolResult(symbol=s, status="FAILED", error=str(exc)))
     db.commit()
 

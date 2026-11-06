@@ -189,3 +189,32 @@ def test_backtest_dividend_adjustment():
     start, end = res.start, res.end
     expected = (df.loc[end, "adj_close"] / df.loc[start, "adj_close"] - 1) * 100
     assert bh == pytest.approx(expected, rel=1e-6)
+
+
+def test_yahoo_outage_not_reported_as_unknown_symbol(monkeypatch):
+    """yfinance returns empty frames on network failure; that must surface as an outage."""
+    from app.providers.base import ProviderUnavailable
+    from app.providers.yahoo import YahooFinanceProvider
+
+    reset_backend(memory=True)
+
+    class FakeYF:
+        @staticmethod
+        def download(**kw):
+            return pd.DataFrame()
+
+        class Ticker:
+            def __init__(self, s):
+                pass
+
+            def history(self, **kw):
+                return pd.DataFrame()
+
+    p = YahooFinanceProvider(max_retries=0)
+    monkeypatch.setattr(p, "_yf", lambda: FakeYF)
+    with pytest.raises(ProviderUnavailable):
+        p.get_daily_history("AAPL", date(2026, 1, 1), date(2026, 1, 31))
+    # probe succeeds -> empty result means unknown symbol, not an outage
+    reset_backend(memory=True)
+    monkeypatch.setattr(p, "reachable", lambda: True)
+    assert p.get_daily_history("ZZZZ", date(2026, 1, 1), date(2026, 1, 31)).frame.empty

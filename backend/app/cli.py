@@ -54,7 +54,7 @@ def main() -> None:
             rep = update_symbols(db, syms, full_refresh=args.full, years=args.years)
             print(json.dumps(rep.summary(), default=str, indent=1))
             if not args.no_analyze:
-                stocks = list(db.scalars(select(Stock).where(Stock.symbol.in_([s.upper().replace(".", "-") for s in syms]))))
+                stocks = list(db.scalars(select(Stock).where(Stock.symbol.in_([s.upper().replace(".", "-") for s in syms]), Stock.asset_type != "INDEX")))
                 res = analyze_stocks(db, stocks, benchmark=default_benchmark())
                 print(json.dumps({r.symbol: [r.status, r.primary_signal, None if not r.score else round(r.score.total or 0, 1)] for r in res}, indent=1))
     elif args.cmd == "daily":

@@ -138,6 +138,12 @@ def stock_card(db: Session, stock: Stock, *, tz: str = "America/New_York", signa
     sig = db.scalar(select(InvestmentSignal).where(InvestmentSignal.stock_id == stock.id, InvestmentSignal.is_primary.is_(True)).order_by(InvestmentSignal.signal_date.desc()).limit(1))
     signal = signal_override or (sig.signal_type if sig else "NEUTRAL")
     reasons = clean_reasons(sig.reasons) if sig else []
+    if signal_override and (not sig or sig.signal_type != signal_override):
+        match = db.scalar(select(InvestmentSignal).where(InvestmentSignal.stock_id == stock.id, InvestmentSignal.signal_type == signal_override).order_by(InvestmentSignal.signal_date.desc()).limit(1))
+        if match:
+            reasons = clean_reasons(match.reasons) + [f"(Most recent {signal_override.replace('_', ' ').lower()} signal: {match.signal_date.isoformat()})"]
+        else:
+            reasons = [f"Layout preview: {stock.symbol} has no {signal_override.replace('_', ' ').lower()} signal; current signal is {(sig.signal_type if sig else 'NEUTRAL').replace('_', ' ')}."] + reasons
     if row["data_status"] == "STALE":
         reasons.insert(0, f"Data is STALE (last bar {row['trade_date']}); signals are paused.")
     payload = alert_payload(stock, row, signal, reasons, row.get("score"), daily, tz=tz)

@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import literal_column, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -117,7 +117,7 @@ def _reasons(signal_type: str, ev: RuleEvaluation, score: ScoreResult | None) ->
         conds = ev.trend_conditions
     out = [f"{c.label} ({c.detail})" for c in conds if c.passed]
     if score and score.total is not None and signal_type in ("STRONG_LONG_TERM_TREND", "BULLISH", "NEUTRAL", "WEAKENING", "BEARISH"):
-        out.insert(0, f"Investment score {score.total:.0f}/100 → {score.classification} (coverage {score.coverage * 100:.0f}%)")
+        out.insert(0, f"Investment score {score.total:.0f}/100 → {(score.classification or '').replace('_', ' ')} (coverage {score.coverage * 100:.0f}%)")
     return out
 
 
@@ -216,8 +216,15 @@ def _persist(db: Session, stock: Stock, d: date, res: AnalysisResult, ev: RuleEv
             provider=res.provider,
             data_status=res.data_status,
             created_at=datetime.now(UTC),
-        ).on_conflict_do_nothing(constraint="uq_signal_stock_tf_date_type").returning(table.c.id)
-        if db.execute(stmt).first() is not None:
+        )
+        # Re-analysis of the same session refreshes the record (e.g. after fundamentals
+        # arrive), but only a genuine insert counts as a *new* signal (alert dedupe).
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_signal_stock_tf_date_type",
+            set_={k: stmt.excluded[k] for k in ("is_primary", "score", "confidence", "confirmation_status", "indicator_snapshot", "reasons", "provider", "data_status")},
+        ).returning(table.c.id, literal_column("(xmax = 0)").label("inserted"))
+        row = db.execute(stmt).first()
+        if row is not None and row.inserted:
             inserted.append(sig_type)
 
     sc = insert(InvestmentScore.__table__).values(
