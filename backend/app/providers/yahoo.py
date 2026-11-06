@@ -149,11 +149,26 @@ class YahooFinanceProvider(MarketDataProvider):
                 sub = pd.DataFrame()
             sub = sub.dropna(how="all")
             frame = normalize_yf_frame(sub)
+            if not frame.empty and pd.isna(frame["close"].iloc[-1]):
+                frame = self._repair_tail(ysym, frame, end)
             warnings: list[str] = []
             if frame.empty:
                 warnings.append("no rows returned")
             out[sym] = HistoryResult(sym, self.name, frame, adjusted_included=True, retrieved_at=retrieved, warnings=warnings)
         return out
+
+    def _repair_tail(self, ysym: str, frame: pd.DataFrame, end: date) -> pd.DataFrame:
+        """Multi-ticker downloads sometimes return the newest bar with an empty close.
+        Re-fetch the last days for that ticker alone and fill only the missing values."""
+        try:
+            hist = self._yf().Ticker(ysym).history(start=(end - timedelta(days=10)).isoformat(), end=(end + timedelta(days=1)).isoformat(), interval="1d", auto_adjust=False, actions=True)
+        except Exception as exc:  # noqa: BLE001 - validation will drop the incomplete bar
+            log.warning("yahoo: tail repair failed for %s: %s", ysym, exc)
+            return frame
+        fix = normalize_yf_frame(hist)
+        if fix.empty:
+            return frame
+        return frame.fillna(fix.reindex(index=frame.index, columns=frame.columns))
 
     PROBE_SYMBOL = "SPY"
 

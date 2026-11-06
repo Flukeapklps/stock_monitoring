@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Monitor — Daily Plan</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --bg:#0b0f14; --card:#111827; --line:#1f2937; --text:#f9fafb; --muted:#9ca3af; --green:#22c55e; --red:#ef4444; --yellow:#eab308; --blue:#38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; font-variant-numeric: tabular-nums; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin:16px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .card b { display:block; font-size:22px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  tr.row { cursor:pointer; } tr.row:hover { background:#0f172a; }
+  .r { text-align:right; }
+  .up { color:var(--green); } .down { color:var(--red); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; background:#1f2937; color:var(--muted); }
+  .b-green { background:#052e16; color:#4ade80; } .b-red { background:#450a0a; color:#f87171; } .b-yellow { background:#422006; color:#facc15; } .b-blue { background:#082f49; color:#7dd3fc; }
+  .detail td { white-space:normal; background:#0d1320; }
+  .wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+  .hide-sm { } @media (max-width:640px){ .hide-sm { display:none; } }
+  ul { margin:6px 0; padding-left:18px; }
+  footer { margin-top:16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📊 Daily Plan</h1>
+  <div id="meta" class="muted">Loading…</div>
+  <div class="cards" id="cards"></div>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Symbol</th><th class="r">Close</th><th class="r">Day</th><th>Action for next session</th><th>Signal</th><th class="r">Score</th><th class="r hide-sm">RSI</th><th class="r hide-sm">1Y</th><th class="hide-sm">Trend (130d)</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <footer class="muted" id="foot">Automated technical analysis of end-of-day data. Not a guaranteed investment recommendation; nothing here executes trades.</footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (v) => (v == null ? "—" : "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const pct = (v, d = 2) => (v == null ? "—" : (v > 0 ? "+" : "") + Number(v).toFixed(d) + "%");
+const cls = (v) => (v == null ? "" : v >= 0 ? "up" : "down");
+const sigBadge = (s) => {
+  if (!s) return '<span class="badge">—</span>';
+  const c = s === "ACCUMULATION_WATCH" ? "b-blue" : ["STRONG_LONG_TERM_TREND", "BULLISH"].includes(s) ? "b-green" : s === "BEARISH" ? "b-red" : s === "WEAKENING" ? "b-yellow" : "";
+  return `<span class="badge ${c}">${esc(s.replace(/_/g, " "))}</span>`;
+};
+const actBadge = (a) => {
+  const c = a.startsWith("Consider") ? "b-blue" : a.startsWith("Hold") ? "b-green" : a.startsWith("Review") || a.startsWith("Avoid") ? "b-red" : "";
+  return `<span class="badge ${c}">${esc(a)}</span>`;
+};
+function spark(data) {
+  if (!data || data.length < 2) return "";
+  const w = 120, h = 28, min = Math.min(...data), max = Math.max(...data), span = max - min || 1;
+  const pts = data.map((v, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${(h - ((v - min) / span) * h).toFixed(1)}`).join(" ");
+  const color = data[data.length - 1] >= data[0] ? "#22c55e" : "#ef4444";
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${color}" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+fetch("data/latest.json", { cache: "no-store" })
+  .then((r) => { if (!r.ok) throw new Error("No snapshot published yet"); return r.json(); })
+  .then((snap) => {
+    $("meta").textContent = `Close ${snap.session} → plan for ${snap.next_session} · ${snap.data_status} · ${snap.provider} · generated ${new Date(snap.generated_at).toLocaleString()}`;
+    const ok = snap.stocks.filter((s) => s.status === "OK");
+    const count = (p) => ok.filter((s) => s.action.startsWith(p)).length;
+    const b = snap.benchmark;
+    $("cards").innerHTML = [
+      [`${esc(b.symbol)} close`, `${money(b.close)} <small class="${cls(b.return_1d)}">${pct(b.return_1d)}</small>`],
+      ["Consider accumulating", count("Consider")],
+      ["Review / avoid", count("Review") + count("Avoid")],
+      ["Signal changes", ok.filter((s) => s.changed).length],
+    ].map(([k, v]) => `<div class="card"><span class="muted">${k}</span><b>${v}</b></div>`).join("");
+    $("rows").innerHTML = snap.stocks.map((s, i) => {
+      if (s.status !== "OK") return `<tr><td><b>${esc(s.symbol)}</b></td><td colspan="8" class="muted">${esc(s.status)} ${esc(s.trade_date || "")} — no signal generated</td></tr>`;
+      const ind = s.indicators;
+      return `<tr class="row" data-i="${i}"><td><b>${esc(s.symbol)}</b><div class="muted">${esc(s.name || "")}</div></td>
+        <td class="r">${money(ind.close)}</td><td class="r ${cls(ind.return_1d)}">${pct(ind.return_1d)}</td>
+        <td>${actBadge(s.action)}${s.changed ? ' <span class="badge b-yellow">changed</span>' : ""}</td><td>${sigBadge(s.signal)}</td>
+        <td class="r">${s.score == null ? "—" : s.score.toFixed(0)}${s.coverage < 0.6 ? "*" : ""}</td><td class="r hide-sm">${ind.rsi_14 == null ? "—" : ind.rsi_14.toFixed(1)}</td>
+        <td class="r hide-sm ${cls(ind.return_1y)}">${pct(ind.return_1y, 1)}</td><td class="hide-sm">${spark(s.spark)}</td></tr>
+        <tr class="detail" id="d${i}" hidden><td colspan="9">
+          <b>Why:</b><ul>${s.reasons.map((r) => `<li>${esc(r)}</li>`).join("") || "<li>No qualifying conditions</li>"}</ul>
+          <b>Score:</b><ul>${s.explanation.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+          <span class="muted">SMA50 ${money(ind.sma_50)} · SMA200 ${money(ind.sma_200)} · ${pct(ind.dist_52w_high_pct, 1)} from 52w high · vs SPY 6M ${pct(s.relative.rel_6m, 1)} / 1Y ${pct(s.relative.rel_1y, 1)} · weekly trend ${esc(s.weekly_trend || "n/a")}${s.flags.length ? " · flags: " + esc(s.flags.join(", ")) : ""}${s.previous_signal ? " · previous: " + esc(s.previous_signal) : ""}</span>
+          ${s.issues.length ? `<div class="muted">Data notes: ${esc(s.issues.join("; "))}</div>` : ""}
+        </td></tr>`;
+    }).join("");
+    document.querySelectorAll("tr.row").forEach((tr) => tr.addEventListener("click", () => { const d = $("d" + tr.dataset.i); d.hidden = !d.hidden; }));
+  })
+  .catch((e) => { $("meta").textContent = e.message; });
+</script>
+</body>
+</html>

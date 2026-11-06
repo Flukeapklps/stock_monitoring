@@ -30,3 +30,5 @@ backups/
 data/
 *.log
 .DS_Store
+site/data/
+previous.json

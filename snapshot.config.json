@@ -1,0 +1,12 @@
+{
+  "symbols": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "JPM", "V", "JNJ", "QQQ", "VTI"],
+  "benchmark": "SPY",
+  "asset_types": { "QQQ": "ETF", "VTI": "ETF" },
+  "names": {
+    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "NVIDIA", "GOOGL": "Alphabet", "AMZN": "Amazon",
+    "META": "Meta Platforms", "JPM": "JPMorgan Chase", "V": "Visa", "JNJ": "Johnson & Johnson",
+    "QQQ": "Invesco QQQ", "VTI": "Vanguard Total Market"
+  },
+  "fundamentals": true,
+  "site_url": ""
+}

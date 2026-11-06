@@ -1,0 +1,72 @@
+# Free daily mode: analyze after the US close, publish a static dashboard to GitHub Pages,
+# and send ONE LINE message with tomorrow's plan.
+# Setup: docs/GITHUB_PAGES_FREE_MODE.md
+name: Daily snapshot
+
+on:
+  schedule:
+    # 22:15 UTC Mon-Fri = after the 16:00 ET close in both EST and EDT. Holidays are skipped by the script.
+    - cron: "15 22 * * 1-5"
+    # Backup run (Tue-Sat 01:30 UTC): Yahoo sometimes publishes the final daily bar late.
+    # Sends only if the first run did not (send-once guard), with whatever data is valid.
+    - cron: "30 1 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      force_line:
+        description: "Send the LINE message even if this session was already sent"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Fetch previous snapshot (change detection, send-once guard)
+        run: curl -fsS "${{ steps.pages.outputs.base_url }}/data/latest.json" -o previous.json || echo "no previous snapshot"
+
+      - name: Build snapshot and notify
+        working-directory: backend
+        env:
+          ENVIRONMENT: snapshot
+          SEC_USER_AGENT: ${{ vars.SEC_USER_AGENT || 'StockMonitor/1.0 github-actions' }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: >
+          python -m app.snapshot --config ../snapshot.config.json --out ../site/data --previous ../previous.json
+          ${{ inputs.force_line && '--force-line' || '' }}
+          ${{ github.event.schedule == '30 1 * * 2-6' && '--min-ok-ratio 0' || '' }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

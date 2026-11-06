@@ -23,6 +23,11 @@ SEC fundamentals, a screener, backtesting, manual portfolios, and LINE Official 
 | LINE | Messaging API (push/reply/multicast/quota), signed webhook, bot commands, Flex alert cards, reports, preferences, cooldown, dedupe, quiet hours, retry keys, delivery history. |
 | Dashboard | Next.js dark terminal: market overview, watchlists, stock detail charts, signal center, screener, backtest, portfolio, LINE settings, notification history, data health. |
 
+## Free mode (GitHub Pages + daily LINE plan)
+
+No server needed: a scheduled GitHub Action publishes a static dashboard to GitHub Pages and sends one LINE
+message per trading day with the plan for the next session. See [GITHUB_PAGES_FREE_MODE.md](docs/GITHUB_PAGES_FREE_MODE.md).
+
 ## Quick start (local)
 
 ```bash
@@ -71,6 +76,7 @@ docs/               architecture, schema, API, setup and operations guides
 - [PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)
 - [BACKTESTING_GUIDE.md](docs/BACKTESTING_GUIDE.md)
 - [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- [GITHUB_PAGES_FREE_MODE.md](docs/GITHUB_PAGES_FREE_MODE.md)
 
 ## Tests
 
