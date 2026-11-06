@@ -28,8 +28,10 @@ is sent once per session; holidays are skipped; symbols with stale or invalid da
 - Free on public repositories; one run is ~2–3 minutes (private repos use the free Actions minutes quota).
 - Uses ≤ ~30 LINE messages/month, within the free LINE Official Account message quota.
 - Read-only dashboard; no login, no web editing (change symbols in the config file), no LINE bot commands.
-- Scheduled Actions can start late; GitHub disables schedules after 60 days without repository activity
-  (re-enable in the Actions tab).
+- Scheduled Actions can start late (a backup run covers this). GitHub disables schedules in public repos after
+  60 days without repository activity; the `Keep schedules alive` workflow re-enables them via the API on the
+  1st and 20th of each month (no commits). If it is ever disabled anyway, GitHub emails you: re-enable it in the
+  Actions tab.
 - Yahoo Finance is unofficial and best-effort; a missing final bar is retried by the backup run.
 
 Upgrade path: the full platform (`docker compose`, see PRODUCTION_DEPLOYMENT.md) adds login, watchlists,
