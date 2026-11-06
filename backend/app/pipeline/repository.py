@@ -47,13 +47,12 @@ def _num(v) -> float | None:
 
 
 def ensure_exchanges(db: Session) -> dict[str, int]:
+    """Idempotent and safe under concurrency (ON CONFLICT DO NOTHING)."""
     existing = {e.code: e.id for e in db.scalars(select(StockExchange))}
-    for code, name, mic in EXCHANGES:
-        if code not in existing:
-            ex = StockExchange(code=code, name=name, mic=mic, calendar_code="XNYS")
-            db.add(ex)
-            db.flush()
-            existing[code] = ex.id
+    missing = [dict(code=c, name=n, mic=m, timezone="America/New_York", calendar_code="XNYS") for c, n, m in EXCHANGES if c not in existing]
+    if missing:
+        db.execute(insert(StockExchange.__table__).values(missing).on_conflict_do_nothing(index_elements=["code"]))
+        existing = {e.code: e.id for e in db.scalars(select(StockExchange))}
     return existing
 
 

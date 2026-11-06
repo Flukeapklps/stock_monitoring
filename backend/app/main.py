@@ -6,6 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, collections, portfolios, research, stocks, system
@@ -26,6 +27,8 @@ def bootstrap() -> None:
 
     try:
         with session_scope() as db:
+            # serialize bootstrap across API workers / worker process
+            db.execute(text("SELECT pg_advisory_xact_lock(724001)"))
             ensure_exchanges(db)
             ensure_admin_user(db)
             bootstrap_admin_recipient(db)
