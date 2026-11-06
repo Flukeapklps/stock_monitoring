@@ -6,9 +6,9 @@ cd "$(dirname "$0")/.."
 FILE="${1:?usage: restore.sh <backup.dump>}"
 [ -f "$FILE" ] || { echo "no such file: $FILE"; exit 1; }
 if [ -f "$FILE.sha256" ]; then sha256sum -c "$FILE.sha256"; fi
+set -a; [ -f .env ] && . ./.env; set +a
 COMPOSE="docker compose -f docker-compose.yml"
 [ -f docker-compose.prod.yml ] && [ "${ENVIRONMENT:-production}" = "production" ] && COMPOSE="$COMPOSE -f docker-compose.prod.yml"
-set -a; [ -f .env ] && . ./.env; set +a
 DB="${POSTGRES_DB:-stock}"; USER_="${POSTGRES_USER:-stock}"
 read -r -p "This will REPLACE database '$DB' with $FILE. Type 'restore' to continue: " ok
 [ "$ok" = "restore" ] || { echo "aborted"; exit 1; }
