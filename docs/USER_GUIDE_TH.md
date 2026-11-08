@@ -22,7 +22,7 @@
 
 ## 2. การอ่านข้อความ LINE
 
-ตัวอย่าง:
+ตัวอย่าง (วิธีอ่าน indicator แต่ละตัว ดูที่ [INDICATOR_GUIDE_TH.md](INDICATOR_GUIDE_TH.md)):
 
 ```
 📊 Plan for 2026-11-09
@@ -32,8 +32,10 @@ SPY close              $766.81 +1.65%
 
 🟢 Consider accumulating
  • AAPL $349.51 (+0.85%) · score 85
+     RSI 45.2 · SMA200 +2.1% · 52W high -6.40% · Weekly Bullish
 🔴 Review / reduce risk
  • GOOGL $288.93 (-1.20%) · score 40
+     RSI 30.2 · SMA200 -15.0% · 52W high -29.29% · Weekly Bearish · Trend Weakening
 🔁 Signal changes
  • META: BULLISH → NEUTRAL
 ✅ Hold — trend intact
@@ -210,4 +212,4 @@ GitHub → **Settings → Secrets and variables → Actions**
 - หน้าเว็บ**เป็นสาธารณะ** ถ้า repo เป็น public ใครมีลิงก์ก็เห็นรายชื่อหุ้นของคุณ (ไม่มีข้อมูลพอร์ตหรือจำนวนเงิน)
 - ไม่มีระบบล็อกอิน พอร์ตโฟลิโอ หรือการสั่งงานผ่าน LINE bot ฟีเจอร์เหล่านี้มีในแพลตฟอร์มเต็ม (ดู `PRODUCTION_DEPLOYMENT.md`)
 
-เอกสารเทคนิคเพิ่มเติม: [GITHUB_PAGES_FREE_MODE.md](GITHUB_PAGES_FREE_MODE.md), [LINE_SETUP.md](LINE_SETUP.md), [ARCHITECTURE.md](ARCHITECTURE.md)
+วิธีอ่าน indicator: [INDICATOR_GUIDE_TH.md](INDICATOR_GUIDE_TH.md) · เอกสารเทคนิคเพิ่มเติม: [GITHUB_PAGES_FREE_MODE.md](GITHUB_PAGES_FREE_MODE.md), [LINE_SETUP.md](LINE_SETUP.md), [ARCHITECTURE.md](ARCHITECTURE.md)

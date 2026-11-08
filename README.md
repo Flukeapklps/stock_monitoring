@@ -27,7 +27,7 @@ SEC fundamentals, a screener, backtesting, manual portfolios, and LINE Official 
 
 No server needed: a scheduled GitHub Action publishes a static dashboard to GitHub Pages and sends one LINE
 message per trading day with the plan for the next session. See [GITHUB_PAGES_FREE_MODE.md](docs/GITHUB_PAGES_FREE_MODE.md).
-**คู่มือการใช้งานภาษาไทย:** [docs/USER_GUIDE_TH.md](docs/USER_GUIDE_TH.md)
+**คู่มือการใช้งานภาษาไทย:** [docs/USER_GUIDE_TH.md](docs/USER_GUIDE_TH.md) · **วิธีอ่าน indicator:** [docs/INDICATOR_GUIDE_TH.md](docs/INDICATOR_GUIDE_TH.md)
 
 ## Quick start (local)
 

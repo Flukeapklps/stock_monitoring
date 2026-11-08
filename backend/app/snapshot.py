@@ -169,9 +169,22 @@ def line_messages(snap: dict, site_url: str | None) -> list[dict]:
     def line(s):
         return f"{s['symbol']} {ft.money(s['indicators']['close'])} ({ft.pct(s['indicators']['return_1d'])}) · score {s['score']:.0f}"
 
+    def detail(s):
+        """Price line + compact indicator line for stocks that need a decision."""
+        ind = s["indicators"]
+        c, s200 = ind.get("close"), ind.get("sma_200")
+        parts = [f"RSI {ft.num(ind.get('rsi_14'))}"]
+        if c and s200:
+            parts.append(f"SMA200 {(c / s200 - 1) * 100:+.1f}%")
+        parts.append(f"52W high {ft.pct(ind.get('dist_52w_high_pct'), signed=True)}")
+        parts.append(f"Weekly {(s.get('weekly_trend') or 'n/a').title()}")
+        if s.get("flags"):
+            parts.append(" ".join(f.replace("_", " ").title() for f in s["flags"]))
+        return line(s) + "\n   " + " · ".join(parts)
+
     groups = [
-        ("🟢 Consider accumulating", [line(s) for s in ok if s["action"].startswith("Consider")]),
-        ("🔴 Review / reduce risk", [line(s) for s in ok if s["action"].startswith(("Review", "Avoid"))]),
+        ("🟢 Consider accumulating", [detail(s) for s in ok if s["action"].startswith("Consider")]),
+        ("🔴 Review / reduce risk", [detail(s) for s in ok if s["action"].startswith(("Review", "Avoid"))]),
         ("🔁 Signal changes", [f"{s['symbol']}: {(s['previous_signal'] or '').replace('_', ' ')} → {s['signal'].replace('_', ' ')}" for s in ok if s["changed"]]),
         ("✅ Hold — trend intact", [s["symbol"] for s in ok if s["action"].startswith("Hold")]),
         ("👀 Watch", [s["symbol"] for s in ok if s["action"].startswith("Watch")]),
