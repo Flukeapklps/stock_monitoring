@@ -69,7 +69,8 @@ jobs:
         working-directory: backend
         env:
           ENVIRONMENT: snapshot
-          SEC_USER_AGENT: ${{ vars.SEC_USER_AGENT || 'StockMonitor/1.0 github-actions' }}
+          # SEC requires contact info: set repository variable SEC_USER_AGENT="StockMonitor/1.0 you@example.com"
+          SEC_USER_AGENT: ${{ vars.SEC_USER_AGENT }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           SITE_URL: ${{ steps.pages.outputs.base_url }}
@@ -101,3 +102,8 @@ jobs:
         if: steps.pages.outcome != 'success'
         run: |
           echo "::warning::GitHub Pages is not enabled. Settings -> Pages -> Build and deployment -> Source: GitHub Actions. The snapshot ran and LINE was handled; only the website was not published."
+
+      - name: Report LINE failure
+        if: always()
+        run: |
+          if [ -f line_error.txt ]; then echo "::error::$(cat line_error.txt)"; exit 1; fi

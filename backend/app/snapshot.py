@@ -60,6 +60,10 @@ def _fundamentals(symbols: list[str]) -> dict[str, dict]:
             rows = derive_metrics(extract_fundamentals(sec.get_company_facts(cik)))
         except Exception as exc:  # noqa: BLE001 - fundamentals are optional
             log.warning("fundamentals %s: %s", sym, exc)
+            if "403" in str(exc):
+                log.error("SEC EDGAR refused access (403): set the SEC_USER_AGENT repository variable to "
+                          "'AppName/1.0 your-email@example.com'. Skipping fundamentals for all symbols.")
+                break
             continue
         best: dict[str, dict] = {}
         for r in rows:
@@ -225,10 +229,16 @@ def main() -> int:
     res = YahooFinanceProvider().get_daily_history_batch(symbols, latest - timedelta(days=365 * 3 + 30), latest)
     frames = {s: r.frame for s, r in res.items()}
     equities = [s for s in cfg["symbols"] if cfg.get("asset_types", {}).get(s, "EQUITY") == "EQUITY"]
-    fundamentals = _fundamentals(equities) if cfg.get("fundamentals", True) else {}
+    use_sec = cfg.get("fundamentals", True)
+    if use_sec and not (os.environ.get("SEC_USER_AGENT") or "").strip():
+        os.environ.pop("SEC_USER_AGENT", None)
+        log.warning("SEC_USER_AGENT not set: skipping fundamentals (SEC requires 'AppName/1.0 your-email@example.com')")
+        use_sec = False
+    fundamentals = _fundamentals(equities) if use_sec else {}
 
     snap = build_snapshot(cfg, frames, latest, fundamentals, previous)
-    token, user = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"), os.environ.get("LINE_USER_ID")
+    token, user = (os.environ.get("LINE_CHANNEL_ACCESS_TOKEN") or "").strip(), (os.environ.get("LINE_USER_ID") or "").strip()
+    line_error = None
     already = snap["line_sent_session"] == snap["session"]
     ok_count = sum(1 for s in snap["stocks"] if s["status"] == "OK")
     if a.no_line or not token or not user:
@@ -240,13 +250,27 @@ def main() -> int:
     else:
         from app.integrations.line.client import LineClient
 
-        resp = LineClient(access_token=token).push(user, line_messages(snap, cfg.get("site_url") or os.environ.get("SITE_URL")), retry_key=None)
-        snap["line_sent_session"] = snap["session"]
-        log.info("LINE message accepted (request id %s)", resp.request_id)
+        from app.integrations.line.client import LineApiError
+
+        try:
+            resp = LineClient(access_token=token).push(user, line_messages(snap, cfg.get("site_url") or os.environ.get("SITE_URL")), retry_key=None)
+            snap["line_sent_session"] = snap["session"]
+            log.info("LINE message accepted (request id %s)", resp.request_id)
+        except LineApiError as exc:
+            hint = {
+                401: "LINE_CHANNEL_ACCESS_TOKEN is invalid: use the long-lived Channel access token (Messaging API tab), not the Channel secret.",
+                400: "LINE_USER_ID is invalid or the user has not added the Official Account as a friend.",
+                429: "LINE rate limit or monthly message quota reached.",
+            }.get(exc.status_code or 0, "")
+            line_error = f"{exc} {hint}".strip()
+            log.error("LINE send failed: %s", line_error)
 
     Path(a.out).mkdir(parents=True, exist_ok=True)
     Path(a.out, "latest.json").write_text(json.dumps(snap, default=str))
     log.info("wrote snapshot for %s: %d/%d symbols OK", snap["session"], ok_count, len(snap["stocks"]))
+    if line_error:
+        # Snapshot is still written and the site still deploys; the workflow fails at the end.
+        Path(a.out).resolve().parent.parent.joinpath("line_error.txt").write_text(line_error)
     return 0
 
 

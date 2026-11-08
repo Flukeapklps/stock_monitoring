@@ -19,7 +19,7 @@ is sent once per session; holidays are skipped; symbols with stale or invalid da
    *Settings → Secrets and variables → Actions → New repository secret*:
    - `LINE_CHANNEL_ACCESS_TOKEN` — long-lived channel access token
    - `LINE_USER_ID` — your user ID (Developers Console → Basic settings → *Your user ID*). Add the Official Account as a friend first.
-3. Optional variable `SEC_USER_AGENT` = `StockMonitor/1.0 your-email@example.com` (SEC asks for contact info).
+3. Variable `SEC_USER_AGENT` = `StockMonitor/1.0 your-email@example.com` (Settings → Secrets and variables → Actions → **Variables** tab). SEC rejects requests without contact info (HTTP 403); without it fundamentals are skipped and scores use technicals only.
 4. Edit `snapshot.config.json` (symbols, names, ETFs under `asset_types`, `fundamentals: false` to skip SEC).
 5. *Actions → Daily snapshot → Run workflow* for a first run (tick *force_line* to resend a session).
 
