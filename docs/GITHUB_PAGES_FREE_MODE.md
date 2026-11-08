@@ -1,5 +1,7 @@
 # Free mode: GitHub Actions + GitHub Pages + daily LINE plan
 
+> คู่มือการใช้งานภาษาไทย (อ่านข้อความ LINE, หน้าเว็บ, สัญญาณ, การเพิ่มหุ้น): [USER_GUIDE_TH.md](USER_GUIDE_TH.md)
+
 No server, no database, no cost. Once per trading day after the US close, a GitHub Action:
 
 1. downloads ~3 years of end-of-day data (Yahoo Finance) for the symbols in `snapshot.config.json`,
