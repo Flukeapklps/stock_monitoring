@@ -45,11 +45,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
+      # If Pages is not enabled yet (Settings -> Pages -> Source: GitHub Actions), keep going:
+      # the snapshot and the LINE message still run; only the website deploy is skipped.
       - id: pages
         uses: actions/configure-pages@v5
+        continue-on-error: true
 
-      - name: Fetch previous snapshot (change detection, send-once guard)
-        run: curl -fsS "${{ steps.pages.outputs.base_url }}/data/latest.json" -o previous.json || echo "no previous snapshot"
+      # Run state (last session analysed / LINE sent) is kept in the Actions cache, so the
+      # send-once guard works even when Pages is not enabled. The live site, if any, wins.
+      - name: Restore previous snapshot state
+        uses: actions/cache/restore@v4
+        with:
+          path: previous.json
+          key: snapshot-state-${{ github.run_id }}
+          restore-keys: snapshot-state-
+
+      - name: Fetch previous snapshot from the live site
+        if: steps.pages.outcome == 'success'
+        run: |
+          if curl -fsS "${{ steps.pages.outputs.base_url }}/data/latest.json" -o prev.tmp; then mv prev.tmp previous.json; else echo "no published snapshot yet"; fi
 
       - name: Build snapshot and notify
         working-directory: backend
@@ -64,9 +78,26 @@ jobs:
           ${{ inputs.force_line && '--force-line' || '' }}
           ${{ github.event.schedule == '30 1 * * 2-6' && '--min-ok-ratio 0' || '' }}
 
+      - name: Save snapshot state
+        if: always()
+        run: if [ -f site/data/latest.json ]; then cp site/data/latest.json previous.json; fi
+
+      - uses: actions/cache/save@v4
+        if: always() && hashFiles('previous.json') != ''
+        with:
+          path: previous.json
+          key: snapshot-state-${{ github.run_id }}
+
       - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outcome == 'success'
         with:
           path: site
 
       - id: deploy
+        if: steps.pages.outcome == 'success'
         uses: actions/deploy-pages@v4
+
+      - name: Pages not enabled
+        if: steps.pages.outcome != 'success'
+        run: |
+          echo "::warning::GitHub Pages is not enabled. Settings -> Pages -> Build and deployment -> Source: GitHub Actions. The snapshot ran and LINE was handled; only the website was not published."

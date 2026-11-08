@@ -23,6 +23,15 @@ is sent once per session; holidays are skipped; symbols with stale or invalid da
 4. Edit `snapshot.config.json` (symbols, names, ETFs under `asset_types`, `fundamentals: false` to skip SEC).
 5. *Actions → Daily snapshot → Run workflow* for a first run (tick *force_line* to resend a session).
 
+## Troubleshooting
+
+- `Get Pages site failed … Not Found`: Pages is not enabled. Settings → Pages → Build and deployment →
+  Source: **GitHub Actions**. Until then the workflow still builds the snapshot and sends LINE, and only skips
+  the website (a warning is shown).
+- `Branch "…" is not allowed to deploy to github-pages`: Settings → Environments → github-pages → Deployment
+  branches: allow your default branch (or the branch you run from).
+- Scheduled runs only start from the **default branch**.
+
 ## Cost and limits
 
 - Free on public repositories; one run is ~2–3 minutes (private repos use the free Actions minutes quota).
